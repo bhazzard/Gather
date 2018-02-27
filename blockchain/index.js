@@ -70,24 +70,18 @@ app.use(function(state, tx) {
   if (tx.type != 'create-group') {
     return
   }
-  console.log('received create-group transaction: ' + console.log(JSON.stringify(tx)))
   if (!transaction.verify(tx)) {
     return
   }
-  console.log('create-group transaction verified')
 
   if (state.groups[tx.group.id]) {
-    console.log('group id already exists')
     return
   }
-  console.log('group id does not yet exist')
 
-  state.groups[transaction.group.id] = {}
-  state.groups[transaction.group.id].name = transaction.group.name
-  state.groups[transaction.group.id].visibility = transaction.group.visibility
-  state.groups[transaction.group.id].admittance = transaction.group.admittance
-
-  console.log(JSON.stringify(state.groups[transaction.group.id]))
+  state.groups[tx.group.id] = {}
+  state.groups[tx.group.id].name = tx.group.name
+  state.groups[tx.group.id].visibility = tx.group.visibility
+  state.groups[tx.group.id].admittance = tx.group.admittance
 })
 
 app.listen(3000)
