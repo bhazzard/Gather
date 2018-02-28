@@ -25,7 +25,9 @@ let app = require('lotion')({
           {'owner': address.toString('hex')}
         ]
       }
-    }
+    },
+    members: {},
+    memberships: {}
   }
 })
 
@@ -37,7 +39,6 @@ app.use(function(state, tx) {
   if (!transaction.verify(tx)) {
     return
   }
-
   let senderBalance = state.balances[tx.senderAddress] || 0
   let receiverBalance = state.balances[tx.receiverAddress] || 0
 
@@ -70,13 +71,21 @@ app.use(function(state, tx) {
   if (tx.type != 'create-group') {
     return
   }
+
   if (!transaction.verify(tx)) {
     return
   }
 
-  if (state.groups[tx.group.id]) {
-    return
-  }
+  if (!tx.group) return
+  if (!tx.group.id) return
+  if (state.groups[tx.group.id]) return
+  if (!tx.group.visibility) return
+  /* TODO implement below validation
+  console.log(tx.group.visibility)
+  if (["public","private","secret"].indexOf(tx.group.visibility) >= 0) return
+  if (!tx.group.admittance) return
+  if (["open","moderated","invitation"].indexOf(tx.group.admittance) >= 0) return
+  */
 
   state.groups[tx.group.id] = {}
   state.groups[tx.group.id].name = tx.group.name
@@ -84,7 +93,35 @@ app.use(function(state, tx) {
   state.groups[tx.group.id].admittance = tx.group.admittance
 })
 
+// Handle Join Group
+app.use(function(state, tx) {
+  if (tx.type != 'join-group') {
+    return
+  }
+
+  if (!transaction.verify(tx)) {
+    return
+  }
+
+  if (!tx.id) return
+  if (!state.groups[tx.id]) return
+  if (state.groups[tx.id].admittance !== 'open') return
+
+  if (!state.members[tx.id]) state.members[tx.id] = []
+  if (!state.memberships[tx.senderAddress]) state.memberships[tx.senderAddress] = []
+
+  state.members[tx.id].push(tx.senderAddress)
+  state.memberships[tx.senderAddress].push(tx.id)
+})
+
 app.listen(3000)
+
+
+// Second User
+let secondUserPrivKey = client.generatePrivateKey()
+let secondUserPubKey = client.generatePublicKey(secondUserPrivKey)
+let secondUserAddress = client.generateAddress(secondUserPubKey)
+let randomGroupId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
 setTimeout(() => {
     //test coin transaction
@@ -92,18 +129,25 @@ setTimeout(() => {
       type: "send-payment",
       payment: {
         amount: 900,
-        receiverAddress: '1234123412341234123412341234123412341234123412341234123412341234'
+        receiverAddress: secondUserAddress
       }
     })
 
     client.send(privKey, {
       type: "create-group",
       group: {
-        id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+        id: randomGroupId,
         name: "Kurt Vonnegut readers of Blacksburg",
         visibility: "public",
         admittance: "open"
       }
     })
-
   }, 10000)
+
+setTimeout(() => {
+    client.send(secondUserPrivKey, {
+      type: "join-group",
+      id: randomGroupId
+    })
+
+  }, 13000)
